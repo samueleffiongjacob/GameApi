@@ -10,7 +10,8 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
-builder.Services.AddScoped<IGameStoreCharacterService, GameStoreService>();
+//builder.Services.AddScoped<IGameStoreCharacterService, GameStoreService>();
+builder.Services.AddSingleton<IGameStoreCharacterService, GameStoreService>();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())

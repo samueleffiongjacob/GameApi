@@ -1,0 +1,20 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+
+# IDE settings
+.vs/
+.vscode/
+
+# Logs and local databases
+*.log
+*.db
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -12,6 +12,7 @@ builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 //builder.Services.AddScoped<IGameStoreCharacterService, GameStoreService>();
 builder.Services.AddSingleton<IGameStoreCharacterService, GameStoreService>();
+builder.Services.AddSingleton<IJwtValidator, GameStoreJwtValidator>();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment())
@@ -21,6 +22,8 @@ if (app.Environment.IsDevelopment())
 }
 app.UseMiddleware<GameStoreapiExceptionHandlingMiddleware>();
 app.UseMiddleware<GameStoreApiRequestLoggingMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseMiddleware<GameStoreApiGuard>();
 app.UseMiddleware<GameStoreApiValidationMiddleware>();
 

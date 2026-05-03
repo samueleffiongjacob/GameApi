@@ -1,11 +1,10 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 namespace GamestoreApi.Middleware
 {
-    public class GameStoreApiGuard(RequestDelegate next, IConfiguration config)
+    public class GameStoreApiGuard
     {
         private static readonly HashSet<string> BlockedPaths = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -15,18 +14,29 @@ namespace GamestoreApi.Middleware
             "/v1/api/GameStoreApi/invalidinput"
         };
 
-        private static readonly string[] ExemptPaths =
-        [
+        private static readonly string[] ExemptPaths = new[]
+        {
             "/scalar",
             "/health",
             "/"
-        ];
+        };
 
-        private readonly RequestDelegate _next = next;
+        private readonly RequestDelegate _next;
+        private readonly IConfiguration _config;
+        private readonly ILogger<GameStoreApiGuard> _logger;
+        private readonly IJwtValidator _jwtValidator;
+
+        public GameStoreApiGuard(RequestDelegate next, IConfiguration config, ILogger<GameStoreApiGuard> logger, IJwtValidator jwtValidator)
+        {
+            _next = next ?? throw new ArgumentNullException(nameof(next));
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _jwtValidator = jwtValidator ?? throw new ArgumentNullException(nameof(jwtValidator));
+        }
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var path = context.Request.Path.ToString();
+            var path = context.Request.Path.Value ?? string.Empty;
 
             // pass through exempt paths — docs, health checks, root
             if (ExemptPaths.Any(e => path.StartsWith(e, StringComparison.OrdinalIgnoreCase)))
@@ -50,7 +60,17 @@ namespace GamestoreApi.Middleware
                 return;
             }
 
-            // extract bearer token from Authorization header
+            // check if Asp.net already authenticated the user
+            if (context.User?.Identity?.IsAuthenticated == true)
+            {
+                context.Response.Headers["X-Request-Guard"] = "ASP-Validated";
+                await _next(context);
+                return;
+            }
+
+            /* ASP.NET did not authenticate — guard tries manually as fallback
+               extract bearer token from Authorization header
+            */
             var authHeader = context.Request.Headers.Authorization.ToString();
             if (string.IsNullOrWhiteSpace(authHeader) || !authHeader.StartsWith("Bearer "))
             {
@@ -61,7 +81,7 @@ namespace GamestoreApi.Middleware
             }
 
             var token = authHeader["Bearer ".Length..].Trim();
-            if (!ValidateJwtToken(token, config, out var principal))
+            if (!_jwtValidator.TryValidateToken(token, out var principal))
             {
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 await context.Response.WriteAsync("Invalid or expired token.");
@@ -75,39 +95,6 @@ namespace GamestoreApi.Middleware
             await _next(context);
         }
 
-        private static bool ValidateJwtToken(
-            string token,
-            IConfiguration config,
-            out System.Security.Claims.ClaimsPrincipal? principal)
-        {
-            principal = null;
-
-            var secret = config["Jwt:Secret"];
-            if (string.IsNullOrWhiteSpace(secret)) return false;
-
-            try
-            {
-                var key       = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
-                var handler   = new JwtSecurityTokenHandler();
-                var parameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey         = key,
-                    ValidateIssuer           = true,
-                    ValidIssuer              = config["Jwt:Issuer"],
-                    ValidateAudience         = true,
-                    ValidAudience            = config["Jwt:Audience"],
-                    ValidateLifetime         = true,
-                    ClockSkew                = TimeSpan.Zero  // no grace period on expiry
-                };
-
-                principal = handler.ValidateToken(token, parameters, out _);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+        // JWT validation is delegated to the registered IJwtValidator implementation.
     }
 }

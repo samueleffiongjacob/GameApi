@@ -1,7 +1,3 @@
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-
 namespace GamestoreApi.Middleware
 {
     public class GameStoreApiGuard

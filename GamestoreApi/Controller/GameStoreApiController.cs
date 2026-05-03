@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using GamestoreApi.Dto;
 using GamestoreApi.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace GamestoreApi.GameStoreApiController
 {
+    [Authorize]
     [Route("v1/api/[controller]")]
     [ApiController]
     public class GameStoreApiController(IGameStoreCharacterService gameStoreService) : ControllerBase

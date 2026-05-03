@@ -31,13 +31,13 @@ namespace GamestoreApi.Middleware
                     {
                         OnAuthenticationFailed = ctx =>
                         {
+                            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             ctx.Response.Headers["X-Auth-Failed"] = "InvalidToken";
                             return Task.CompletedTask;
                         },
                         OnChallenge = ctx =>
                         {
-                            // suppress default ASP.NET 401
-                            // let guard handle it instead
+                            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             ctx.HandleResponse();
                             return Task.CompletedTask;
                         }
